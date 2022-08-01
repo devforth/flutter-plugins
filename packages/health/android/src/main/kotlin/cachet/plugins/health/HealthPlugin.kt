@@ -1,6 +1,7 @@
 package cachet.plugins.health
 
 import android.app.Activity
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Handler
@@ -42,6 +43,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) : MethodCallHandl
   private var result: Result? = null
   private var handler: Handler? = null
   private var activity: Activity? = null
+  private var context: Context? = null
   private var threadPoolExecutor: ExecutorService? = null
 
   private var BODY_FAT_PERCENTAGE = "BODY_FAT_PERCENTAGE"
@@ -171,6 +173,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) : MethodCallHandl
   override fun onAttachedToEngine(@NonNull flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
     channel = MethodChannel(flutterPluginBinding.binaryMessenger, CHANNEL_NAME)
     channel?.setMethodCallHandler(this)
+    context = flutterPluginBinding.applicationContext
     threadPoolExecutor = Executors.newFixedThreadPool(4)
   }
 
@@ -522,7 +525,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) : MethodCallHandl
 
 
   private fun getData(call: MethodCall, result: Result) {
-    if (activity == null) {
+    if (context == null) {
       result.success(null)
       return
     }
@@ -547,7 +550,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) : MethodCallHandl
     val fitnessOptions = typesBuilder.build()
 
     val googleSignInAccount =
-      GoogleSignIn.getAccountForExtension(activity!!.applicationContext, fitnessOptions)
+      GoogleSignIn.getAccountForExtension(context!!, fitnessOptions)
     // Handle data types
     when (dataType) {
       DataType.TYPE_SLEEP_SEGMENT -> {
@@ -600,7 +603,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) : MethodCallHandl
           .addOnFailureListener(errHandler(result))
       }
       else -> {
-        Fitness.getHistoryClient(activity!!.applicationContext, googleSignInAccount)
+        Fitness.getHistoryClient(context!!, googleSignInAccount)
           .readData(
             DataReadRequest.Builder()
               .read(dataType)
@@ -630,7 +633,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) : MethodCallHandl
           "source_id" to dataPoint.originalDataSource.streamIdentifier
         )
       }
-      activity!!.runOnUiThread { result.success(healthData) }
+      result.success(healthData)
     }
 
   private fun errHandler(result: Result) = OnFailureListener { exception ->
@@ -826,7 +829,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) : MethodCallHandl
 
   /// Called when the "requestAuthorization" is invoked from Flutter
   private fun requestAuthorization(call: MethodCall, result: Result) {
-    if (activity == null) {
+    if (context == null) {
       result.success(false)
       return
     }
@@ -835,7 +838,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) : MethodCallHandl
     mResult = result
 
     val isGranted = GoogleSignIn.hasPermissions(
-      GoogleSignIn.getLastSignedInAccount(activity!!),
+      GoogleSignIn.getLastSignedInAccount(context!!),
       optionsToRegister
     )
     /// Not granted? Ask for permission
