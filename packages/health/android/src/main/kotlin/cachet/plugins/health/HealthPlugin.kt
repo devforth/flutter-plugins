@@ -9,6 +9,8 @@ import android.util.Log
 import androidx.annotation.NonNull
 import androidx.core.content.ContextCompat
 import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.fitness.Fitness
 import com.google.android.gms.fitness.FitnessActivities
 import com.google.android.gms.fitness.FitnessOptions
@@ -20,6 +22,7 @@ import com.google.android.gms.fitness.result.DataReadResponse
 import com.google.android.gms.fitness.result.SessionReadResponse
 import com.google.android.gms.tasks.OnFailureListener
 import com.google.android.gms.tasks.OnSuccessListener
+import com.google.android.gms.tasks.Task
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding
@@ -846,7 +849,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) : MethodCallHandl
       GoogleSignIn.requestPermissions(
         activity!!,
         GOOGLE_FIT_PERMISSIONS_REQUEST_CODE,
-        GoogleSignIn.getLastSignedInAccount(activity!!),
+        GoogleSignIn.getLastSignedInAccount(context!!),
         optionsToRegister
       )
     }
@@ -854,6 +857,24 @@ class HealthPlugin(private var channel: MethodChannel? = null) : MethodCallHandl
     else {
       mResult?.success(true)
     }
+  }
+
+  /// Called when the "revokePermissions" is invoked from Flutter
+  private fun revokePermissions(call: MethodCall, result: Result) {
+    if (context == null) {
+      result.success(false)
+      return
+    }
+
+    val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+      .addExtension(callToHealthTypes(call))
+      .build()
+
+    val client = GoogleSignIn.getClient(context!!, gso)
+    client.revokeAccess()
+      .continueWithTask { client.signOut() }
+      .addOnCompleteListener { result.success(true) }
+      .addOnFailureListener { result.success(false) }
   }
 
   private fun getTotalStepsInInterval(call: MethodCall, result: Result) {
@@ -938,6 +959,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) : MethodCallHandl
   override fun onMethodCall(call: MethodCall, result: Result) {
     when (call.method) {
       "requestAuthorization" -> requestAuthorization(call, result)
+      "revokePermissions" -> revokePermissions(call, result)
       "getData" -> getData(call, result)
       "writeData" -> writeData(call, result)
       "getTotalStepsInInterval" -> getTotalStepsInInterval(call, result)
