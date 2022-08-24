@@ -640,7 +640,7 @@ class HealthPlugin(private var channel: MethodChannel? = null) : MethodCallHandl
     }
 
   private fun errHandler(result: Result) = OnFailureListener { exception ->
-    activity!!.runOnUiThread { result.success(null) }
+    result.success(null)
     Log.i("FLUTTER_HEALTH::ERROR", exception.message ?: "unknown error")
     Log.i("FLUTTER_HEALTH::ERROR", exception.stackTrace.toString())
   }
